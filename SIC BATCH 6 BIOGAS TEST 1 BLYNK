@@ -1,0 +1,52 @@
+#include <WiFi.h>
+#include <DHT.h>
+#include <BlynkSimpleEsp32.h>
+
+#define DHTPIN 4          // GPIO4
+#define DHTTYPE DHT22
+#define TRIG_PIN 5        // GPIO5
+#define ECHO_PIN 18       // GPIO18
+#define GAS_SENSOR_PIN 34 // ADC1_CH6
+
+const char* ssid = "NAMA_WIFI";
+const char* pass = "PASSWORD_WIFI";
+const char* authToken = "BLYNK_AUTH_TOKEN";
+
+DHT dht(DHTPIN, DHTTYPE);
+float tinggiWadah = 100; // Tinggi wadah dalam cm
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(TRIG_PIN, OUTPUT);
+  pinMode(ECHO_PIN, INPUT);
+  dht.begin();
+  Blynk.begin(authToken, ssid, pass);
+}
+
+void loop() {
+  // Baca sensor ultrasonik
+  digitalWrite(TRIG_PIN, LOW);
+  delayMicroseconds(2);
+  digitalWrite(TRIG_PIN, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(TRIG_PIN, LOW);
+  long duration = pulseIn(ECHO_PIN, HIGH);
+  float jarak = (duration * 0.0343) / 2; // Dalam cm
+  float persentaseIsi = ((tinggiWadah - jarak) / tinggiWadah) * 100;
+
+  // Baca sensor gas (konversi ADC ke ppm)
+  int gasValue = analogRead(GAS_SENSOR_PIN);
+  float densityGas = map(gasValue, 0, 4095, 0, 100); // Kalibrasi sesuai datasheet
+
+  // Baca DHT22
+  float suhu = dht.readTemperature();
+  float kelembaban = dht.readHumidity();
+
+  // Kirim data ke Blynk
+  Blynk.virtualWrite(V0, persentaseIsi);
+  Blynk.virtualWrite(V1, densityGas);
+  Blynk.virtualWrite(V2, suhu);
+  Blynk.virtualWrite(V3, kelembaban);
+
+  delay(5000); // Update setiap 5 detik
+}
